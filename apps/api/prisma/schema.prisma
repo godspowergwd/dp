@@ -1,0 +1,646 @@
+// ============================================================================
+// Private Dropshipping OS — Database schema (docs/05-DATABASE-DESIGN.md)
+// Conventions:
+//   - UUID primary keys
+//   - created_at / updated_at timestamps on every table
+//   - soft deletion (deleted_at) where recovery matters
+//   - Integration credentials stored encrypted / never in plain text
+//   - Enums defined once, reused across models
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum ProductStatus {
+  discovered
+  researching
+  shortlisted
+  approved
+  rejected
+  drafting
+  published
+  paused
+  archived
+}
+
+enum ResearchDecision {
+  recommended
+  caution
+  not_recommended
+}
+
+enum OrderStatus {
+  pending
+  awaiting_fulfillment
+  fulfilled
+  partial
+  shipped
+  delivered
+  cancelled
+  refunded
+}
+
+enum AiJobStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum AiTaskClass {
+  cheap_bulk
+  standard
+  premium
+  multimodal
+}
+
+enum PublishJobStatus {
+  draft
+  validating
+  awaiting_approval
+  approved
+  published
+  failed
+  cancelled
+}
+
+enum ConnectionStatus {
+  connecting
+  connected
+  error
+  disconnected
+}
+
+enum ProviderType {
+  store
+  supplier
+  ai
+  social
+}
+
+enum ApprovalDecision {
+  pending
+  approved
+  rejected
+}
+
+enum AssetType {
+  image
+  video
+  audio
+  document
+}
+
+enum JobState {
+  queued
+  running
+  succeeded
+  failed
+  dead_lettered
+}
+
+// ---------------------------------------------------------------------------
+// Identity & configuration
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  email         String   @unique
+  name          String?
+  passwordHash  String? // null until set; used with strong auth / MFA
+  mfaEnabled    Boolean  @default(false)
+  mfaSecret     String? // encrypted TOTP secret when MFA enabled
+  role          String   @default("owner")
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  auditLogs AuditLog[]
+}
+
+model Setting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  sensitive Boolean  @default(false) // true => stored encrypted
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Products
+// ---------------------------------------------------------------------------
+
+model Product {
+  id            String        @id @default(uuid()) @db.Uuid
+  title         String
+  description   String?
+  category      String?
+  status        ProductStatus @default(discovered)
+  notes         String?
+  opportunityScore Float?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  variants        ProductVariant[]
+  sources         ProductSource[]
+  research        ProductResearch[]
+  scores          ProductScore[]
+  supplierProducts SupplierProduct[]
+  storeProducts   StoreProduct[]
+  campaigns       MarketingCampaign[]
+  publishJobs     PublishJob[]
+  orderItems      OrderItem[]
+
+  @@index([status])
+}
+
+model ProductVariant {
+  id         String   @id @default(uuid()) @db.Uuid
+  productId  String   @db.Uuid
+  sku        String?
+  name       String?
+  attributes Json?
+  cost       Decimal? @db.Decimal(12, 2)
+  price      Decimal? @db.Decimal(12, 2)
+  currency   String   @default("USD")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductSource {
+  id           String  @id @default(uuid()) @db.Uuid
+  productId    String  @db.Uuid
+  sourceUrl    String
+  sourceType   String? // e.g. "supplier", "competitor", "marketplace"
+  sourceName   String?
+  rawMetadata  Json?
+  status       String  @default("captured") // captured, fetched, error
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductResearch {
+  id               String           @id @default(uuid()) @db.Uuid
+  productId        String           @db.Uuid
+  aiJobId          String?          @db.Uuid
+  problemSolved    String?
+  targetAudience   String?
+  differentiation  String?
+  demandSignals    Json?
+  competitorNotes  Json?
+  objections       Json?
+  estimatedMargin  Decimal?         @db.Decimal(12, 2)
+  operationalRisks Json?
+  recommendedDecision ResearchDecision?
+  summary          String? // human-readable report
+  rawOutput        Json?
+  createdAt        DateTime         @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  aiJob   AiJob?  @relation(fields: [aiJobId], references: [id])
+
+  @@index([productId])
+}
+
+model ProductScore {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @db.Uuid
+  demand    Float?
+  margin    Float?
+  competition Float?
+  shipping  Float?
+  creativePotential Float?
+  supplierConfidence Float?
+  risk      Float?
+  total     Float?
+  weightConfig Json
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+
+// ---------------------------------------------------------------------------
+// Suppliers
+// ---------------------------------------------------------------------------
+
+model Supplier {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  sourceUrl   String?
+  apiId       String?
+  providerType String? // e.g. "aliexpress", "cjdropshipping", "manual"
+  notes       String?
+  reliability Float? // operator-maintained confidence 0-100
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  products SupplierProduct[]
+  orders  Order[]
+}
+
+model SupplierProduct {
+  id         String   @id @default(uuid()) @db.Uuid
+  productId  String   @db.Uuid
+  supplierId String   @db.Uuid
+  supplierSku String?
+  supplierProductId String? // external id at the supplier
+  cost       Decimal? @db.Decimal(12, 2)
+  currency   String   @default("USD")
+  shippingEstimate String?
+  supplierData Json?
+  isDefault  Boolean  @default(false)
+  lastCheckedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@unique([productId, supplierId, supplierSku])
+  @@index([supplierId])
+}
+
+// ---------------------------------------------------------------------------
+// Stores & store products
+// ---------------------------------------------------------------------------
+
+model Store {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  platform  String // shopify, woocommerce, etsy, manual...
+  shopDomain String?
+  currency  String   @default("USD")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products     StoreProduct[]
+  connections  IntegrationConnection[]
+  orders       Order[]
+  publishJobs  PublishJob[]
+}
+
+model StoreProduct {
+  id             String   @id @default(uuid()) @db.Uuid
+  productId      String   @db.Uuid
+  storeId        String   @db.Uuid
+  externalId     String? // id in the store platform
+  handle         String?
+  isPublished    Boolean  @default(false)
+  publishedAt    DateTime?
+  price          Decimal? @db.Decimal(12, 2)
+  storeData      Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id])
+
+  @@unique([storeId, externalId])
+  @@index([productId])
+}
+
+// ---------------------------------------------------------------------------
+// Orders & fulfillment
+// ---------------------------------------------------------------------------
+
+model Order {
+  id            String      @id @default(uuid()) @db.Uuid
+  storeId       String?     @db.Uuid
+  supplierId    String?     @db.Uuid
+  externalId    String?     // order id from the store platform
+  status        OrderStatus @default(pending)
+  idempotencyKey String?    @unique // prevents duplicate imports
+  subtotal      Decimal?    @db.Decimal(12, 2)
+  shippingFee   Decimal?    @db.Decimal(12, 2)
+  taxes         Decimal?    @db.Decimal(12, 2)
+  total         Decimal?    @db.Decimal(12, 2)
+  currency      String      @default("USD")
+  customerName  String?
+  customerEmail String?
+  placedAt      DateTime?
+  rawData       Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  store             Store?              @relation(fields: [storeId], references: [id])
+  supplier          Supplier?           @relation(fields: [supplierId], references: [id])
+  items             OrderItem[]
+  fulfillmentEvents FulfillmentEvent[]
+  trackingEvents    TrackingEvent[]
+
+  @@index([storeId])
+  @@index([status])
+}
+
+model OrderItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  productId   String?  @db.Uuid
+  variantId   String?  @db.Uuid
+  externalId  String?
+  sku         String?
+  name        String?
+  quantity    Int      @default(1)
+  unitPrice   Decimal? @db.Decimal(12, 2)
+  unitCost    Decimal? @db.Decimal(12, 2)
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+model FulfillmentEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  fulfillmentId String? // supplier-side fulfillment id
+  status      String // created, accepted, processing, shipped, delivered, error
+  reference   String?
+  rawData     Json?
+  eventAt     DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model TrackingEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  carrier     String?
+  trackingNumber String?
+  status      String?
+  location    String?
+  description String?
+  eventAt     DateTime?
+  rawData     Json?
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+
+// ---------------------------------------------------------------------------
+// AI Gateway
+// ---------------------------------------------------------------------------
+
+model AiJob {
+  id            String      @id @default(uuid()) @db.Uuid
+  taskType      String // e.g. "research_summary", "title_generation", "ad_copy"
+  taskClass     AiTaskClass @default(standard)
+  provider      String? // model/provider actually used
+  model         String?
+  status        AiJobStatus @default(queued)
+  inputMetadata Json?
+  output        Json? // normalized structured output
+  rawResponse   Json?
+  estimatedCost Decimal?   @db.Decimal(12, 4)
+  latencyMs     Int?
+  errorMessage  String?
+  approvalRequired Boolean  @default(false)
+  approvedAt    DateTime?
+  idempotencyKey String?   @unique
+  createdAt     DateTime   @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  updatedAt     DateTime   @updatedAt
+
+  researchOutput ProductResearch[]
+  outputs  AiOutput[]
+  usage    AiUsage?
+
+  @@index([status])
+  @@index([taskType])
+}
+
+model AiOutput {
+  id       String  @id @default(uuid()) @db.Uuid
+  aiJobId  String  @db.Uuid
+  variant  String  @default("primary") // multiple candidate outputs per job
+  contentType String // text, json, image, video, audio
+  content  Json? // text or reference to asset
+  assetId  String? @db.Uuid
+  createdAt DateTime @default(now())
+
+  job AiJob @relation(fields: [aiJobId], references: [id], onDelete: Cascade)
+  asset Asset? @relation(fields: [assetId], references: [id])
+
+  @@index([aiJobId])
+}
+
+model AiUsage {
+  id         String   @id @default(uuid()) @db.Uuid
+  aiJobId    String   @unique @db.Uuid
+  provider   String
+  model      String?
+  inputTokens  Int?
+  outputTokens Int?
+  totalTokens  Int?
+  estimatedCost Decimal? @db.Decimal(12, 4)
+  currency     String   @default("USD")
+  createdAt    DateTime @default(now())
+
+  job AiJob @relation(fields: [aiJobId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Assets
+// ---------------------------------------------------------------------------
+
+model Asset {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        AssetType @default(image)
+  mimeType    String?
+  sizeBytes   Int?
+  url         String // storage url / key
+  storageProvider String? // s3, supabase storage, local
+  altText     String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  aiOutputs AiOutput[]
+}
+
+// ---------------------------------------------------------------------------
+// Marketing
+// ---------------------------------------------------------------------------
+
+model MarketingCampaign {
+  id              String    @id @default(uuid()) @db.Uuid
+  productId       String?   @db.Uuid
+  title           String?
+  platform        String? // instagram, tiktok, facebook, pinterest...
+  account         String?
+  copy            Json? // title/description/hashtags/call-to-action
+  mediaRefs       Json?
+  scheduledAt     DateTime?
+  status          String    @default("draft") // draft, awaiting_approval, scheduled, published, failed
+  externalPostId  String?
+  errorMessage    String?
+  approval        ApprovalDecision @default(pending)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Publishing jobs
+// ---------------------------------------------------------------------------
+
+model PublishJob {
+  id             String          @id @default(uuid()) @db.Uuid
+  productId      String?         @db.Uuid
+  storeId        String?         @db.Uuid
+  status         PublishJobStatus @default(draft)
+  action         String // create, update, publish, unpublish
+  payload        Json? // prepared listing payload
+  consumerPayload Json? // payload transformed for the target provider
+  provider       String?
+  providerResponse Json?
+  errorMessage   String?
+  approval       ApprovalDecision @default(pending)
+  approvedAt     DateTime?
+  idempotencyKey String?         @unique
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  product Product? @relation(fields: [productId], references: [id])
+  store   Store?   @relation(fields: [storeId], references: [id])
+
+  @@index([productId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Integrations
+// ---------------------------------------------------------------------------
+
+model IntegrationConnection {
+  id             String          @id @default(uuid()) @db.Uuid
+  providerType   ProviderType
+  providerName   String // e.g. "shopify", "aliexpress", "openai"
+  providerInstanceId String? // distinguishes multiple accounts of same provider
+  label          String?
+  status         ConnectionStatus @default(connecting)
+  credentialsRef String? // reference to encrypted secrets store (never raw secrets)
+  config         Json?
+  tenantDomain   String? // e.g. store subdomain / account handle
+  lastSyncAt     DateTime?
+  errorMessage   String?
+  idempotencyKey String? @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  store   Store?   @relation(fields: [storeId], references: [id])
+  storeId String?  @db.Uuid
+  events  IntegrationEvent[]
+
+  @@index([providerType])
+  @@index([status])
+}
+
+model IntegrationEvent {
+  id           String    @id @default(uuid()) @db.Uuid
+  connectionId String    @db.Uuid
+  type         String // webhook_received, request, response, error, auth_succeeded
+  direction    String    @default("in") // in/out
+  status       String? // ok, error, retry
+  payload      Json?
+  rawBody      String? // for webhook verification debugging (redact secrets)
+  attempts     Int       @default(1)
+  idempotencyKey String? @unique
+  createdAt    DateTime  @default(now())
+
+  connection IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([type])
+}
+
+// ---------------------------------------------------------------------------
+// Background jobs
+// ---------------------------------------------------------------------------
+
+model BackgroundJob {
+  id          String   @id @default(uuid()) @db.Uuid
+  jobType     String // research_fetch, ai_generate, publish, sync, import
+  state       JobState @default(queued)
+  payload     Json?
+  result      Json?
+  errorMessage String?
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3)
+  nextRunAt   DateTime?
+  idempotencyKey String? @unique
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  updatedAt   DateTime @updatedAt
+
+  @@index([state])
+  @@index([jobType])
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @db.Uuid
+  action    String // e.g. "product.publish", "supplier.change", "order.fulfill"
+  entityType String?
+  entityId  String?
+  before    Json?
+  after     Json?
+  metadata  Json?
+  correlationId String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
