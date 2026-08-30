@@ -1,14 +1,12 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { notFound } from '../../lib/errors.js';
-import type {
-  CreateProductInput,
-  ProductQuery,
-  UpdateProductInput,
-} from './product.schema.js';
+import type { ProductQuery } from './product.schema.js';
 import type { ProductStatus } from '@pd/shared';
 
 export async function listProducts(query: ProductQuery) {
+  const page = query.page ?? 1;
+  const limit = query.limit ?? 25;
   const where: Prisma.ProductWhereInput = {};
   if (query.status) where.status = query.status;
   if (query.q) {
@@ -19,8 +17,8 @@ export async function listProducts(query: ProductQuery) {
     prisma.product.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
-      skip: (query.page - 1) * query.limit,
-      take: query.limit,
+      skip: (page - 1) * limit,
+      take: limit,
       include: {
         variants: true,
         sources: true,
@@ -34,10 +32,10 @@ export async function listProducts(query: ProductQuery) {
   return {
     data: items,
     pagination: {
-      page: query.page,
-      limit: query.limit,
+      page,
+      limit,
       total,
-      totalPages: Math.ceil(total / query.limit),
+      totalPages: Math.ceil(total / limit),
     },
   };
 }
@@ -58,11 +56,11 @@ export async function getProduct(id: string) {
   return product;
 }
 
-export async function createProduct(input: CreateProductInput) {
+export async function createProduct(input: Prisma.ProductCreateInput) {
   return prisma.product.create({ data: input });
 }
 
-export async function updateProduct(id: string, input: UpdateProductInput) {
+export async function updateProduct(id: string, input: Prisma.ProductUpdateInput) {
   await prisma.product.findUniqueOrThrow({ where: { id } }).catch(() => {
     throw notFound('Product not found');
   });

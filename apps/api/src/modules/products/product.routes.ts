@@ -14,6 +14,7 @@ import {
   updateProduct,
 } from './product.service.js';
 import { badRequest } from '../../lib/errors.js';
+import type { Prisma } from '@prisma/client';
 
 /**
  * Product Hub routes — /api/v1/products (docs/02-FEATURE-MAP.md)
@@ -26,7 +27,8 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/', { preHandler: auth }, async (request, reply) => {
-    const created = await createProduct(createProductSchema.parse(request.body));
+    const input = createProductSchema.parse(request.body) as Prisma.ProductCreateInput;
+    const created = await createProduct(input);
     return reply.code(201).send(created);
   });
 
@@ -37,7 +39,8 @@ export async function productRoutes(app: FastifyInstance): Promise<void> {
 
   app.patch('/:id', { preHandler: auth }, async (request) => {
     const { id } = idParamsSchema.parse(request.params);
-    return updateProduct(id, updateProductSchema.parse(request.body));
+    const input = updateProductSchema.parse(request.body) as Prisma.ProductUpdateInput;
+    return updateProduct(id, input);
   });
 
   // Status transitions per product lifecycle (docs/00-MASTER-SPECIFICATION.md)
