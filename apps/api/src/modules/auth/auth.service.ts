@@ -9,16 +9,17 @@ export interface AuthResult {
 }
 
 /**
- * Bootstrap registration: only allowed while no active owner exists.
- * This keeps v1 strictly single-operator (docs/00-MASTER-SPECIFICATION.md).
+ * Registration: allows signup if email is not already taken.
  */
 export async function register(
   input: RegisterInput,
   signToken: (payload: object) => string,
 ): Promise<AuthResult> {
-  const existing = await prisma.user.count();
-  if (existing > 0) {
-    throw conflict('An owner account already exists. Registration is closed.');
+  const existing = await prisma.user.findUnique({
+    where: { email: input.email.toLowerCase() },
+  });
+  if (existing) {
+    throw conflict('An account with this email already exists.');
   }
 
   const passwordHash = await hashPassword(input.password);
