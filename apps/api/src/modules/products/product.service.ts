@@ -6,6 +6,7 @@ import type {
   ProductQuery,
   UpdateProductInput,
 } from './product.schema.js';
+import type { ProductStatus } from '@pd/shared';
 
 export async function listProducts(query: ProductQuery) {
   const where: Prisma.ProductWhereInput = {};
@@ -72,7 +73,7 @@ export async function setProductStatus(id: string, status: string) {
   await prisma.product.findUniqueOrThrow({ where: { id } }).catch(() => {
     throw notFound('Product not found');
   });
-  return prisma.product.update({ where: { id }, data: { status: status as any } });
+  return prisma.product.update({ where: { id }, data: { status: status as ProductStatus } });
 }
 
 export async function archiveProduct(id: string) {

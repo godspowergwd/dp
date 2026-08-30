@@ -1,6 +1,4 @@
-import type { Metadata } from 'next';
-
-export const metadata: Metadata = { title: 'Login · Private Dropshipping OS' };
+'use client';
 
 export default function LoginPage() {
   return (
