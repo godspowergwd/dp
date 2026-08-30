@@ -27,7 +27,8 @@
     "typescript": "^5.5.4"
   },
   "overrides": {
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "unrs-resolver": "1.9.0"
   },
   "engines": {
     "node": ">=20"
