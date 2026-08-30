@@ -20,27 +20,58 @@ PD/
 └── .github/        CI workflows
 ```
 
+## Status
+
+✅ **Phase 0/1 (Foundation) complete and verified live against Supabase.**
+Database schema (25 tables, 11 enums) is migrated, owner account seeded, and the
+API server runs with working auth, validation, and CRUD. See
+[`docs/17-ROADMAP.md`](private-dropshipping-platform-docs/docs/17-ROADMAP.md) for
+the full plan.
+
 ## Prerequisites
 
 - Node.js >= 20 (tested on 22)
-- PostgreSQL (or Supabase free tier)
+- PostgreSQL (local or Supabase free tier)
 - npm
 
 ## Getting started
 
+> **Database:** You can use local PostgreSQL **or** a hosted one (e.g. Supabase
+> free tier). Hosted is recommended — it avoids local `pg_hba` / admin issues.
+> The initial schema is applied via `prisma db push` or `migrate deploy`
+> against your database's **direct session connection** (not the transaction
+> pooler) — the transaction pooler cannot run DDL.
+
 ```bash
 npm install
 
-# 1. Database
-cp .env.example apps/api/.env        # fill in values
-npm run db:generate                  # generate Prisma client
-npm run db:migrate -- --name init    # create tables
-npm run db:seed                      # create the initial operator account
+# 1. Configure the environment
+#    Copy apps/api/.env.example -> apps/api/.env and set DATABASE_URL.
+#    Hosted example (Supabase):
+#      DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres"
+#    Local example:
+#      DATABASE_URL="postgresql://<user>:<password>@localhost:5432/dropshipping_os"
+cp .env.example apps/api/.env
 
-# 2. Run the API
+# 2. Generate the Prisma client
+npm run db:generate
+
+# 3. Create tables.
+#    For HOSTED PostgreSQL (no shadow DB needed):
+npm run db:migrate -- -w @pd/api -- deploy          # applies the committed migration
+#    For LOCAL PostgreSQL you can optionally develop migrations instead:
+#       npm run db:deploy                            # same as above, from the api workspace
+#       npm run db:migrate -- -w @pd/api -- --name init   # local dev migration (needs shadow DB)
+
+# 4. Create the initial operator account (reads ADMIN_EMAIL/ADMIN_PASSWORD,
+#    defaults to owner@example.com / change-me-strong-password)
+$env:ADMIN_EMAIL="you@example.com"; $env:ADMIN_PASSWORD="a-strong-password"
+npm run db:seed
+
+# 5. Run the API
 npm run dev:api                      # http://localhost:4000
 
-# 3. Run the web app
+# 6. Run the web app
 npm run dev:web                      # http://localhost:3000
 ```
 
