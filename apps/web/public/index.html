@@ -4,97 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Private Dropshipping OS</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --panel: #1e293b;
-      --border: #334155;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #3b82f6;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 2rem;
-    }
-    main { max-width: 720px; margin: 0 auto; }
-    h1 { font-size: 2rem; margin-bottom: 1rem; }
-    h2 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; color: var(--accent); }
-    p { color: var(--muted); line-height: 1.6; margin-bottom: 1rem; }
-    ul { list-style: none; padding: 0; }
-    li {
-      padding: 0.75rem 1rem;
-      margin-bottom: 0.5rem;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-    }
-    .status {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      margin-left: 0.5rem;
-    }
-    .status.up { background: #064e3b; color: #34d399; }
-    .status.down { background: #7f1d1d; color: #f87171; }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    #api-status { margin-top: 1rem; }
-  </style>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
 </head>
 <body>
-  <main>
-    <h1>Private Dropshipping OS</h1>
-    <p>Private single-operator commerce command center — research products, manage suppliers, generate AI assets, publish to stores, and monitor orders & performance.</p>
-
-    <h2>System Status</h2>
-    <ul>
-      <li>API Server <span id="api-status" class="status down">Checking...</span></li>
-      <li>Database <span id="db-status" class="status down">Checking...</span></li>
-    </ul>
-
-    <h2>Modules</h2>
-    <ul>
-      <li>Product Research</li>
-      <li>Product & Supplier Management</li>
-      <li>Storefront Integrations</li>
-      <li>AI Studio</li>
-      <li>Marketing & Social Publishing</li>
-      <li>Orders & Fulfillment</li>
-      <li>Analytics</li>
-      <li>Settings & Integrations</li>
-    </ul>
-
-    <h2>Getting started</h2>
-    <p>This frontend is a static scaffold. The API is running at <code>http://localhost:4000</code>. Full frontend coming soon with authentication and dashboard.</p>
-  </main>
-
+  <div id="app"></div>
+  <div id="toast-container"></div>
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal-container" class="modal-container"></div>
+  </div>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/router.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/pages.js"></script>
   <script>
-    async function checkHealth() {
-      try {
-        const res = await fetch('http://localhost:4000/health');
-        const data = await res.json();
-        if (data.status === 'ok') {
-          document.getElementById('api-status').textContent = 'Online';
-          document.getElementById('api-status').className = 'status up';
-          if (data.database === 'up') {
-            document.getElementById('db-status').textContent = 'Connected';
-            document.getElementById('db-status').className = 'status up';
-          }
-        }
-      } catch (e) {
-        document.getElementById('api-status').textContent = 'Offline';
-        document.getElementById('db-status').textContent = 'Unknown';
-      }
-    }
-    checkHealth();
-    setInterval(checkHealth, 30000);
+    window.addEventListener('DOMContentLoaded', () => window.app.init());
   </script>
 </body>
 </html>
