@@ -1,227 +1,349 @@
-/**
- * Page Renderers
+﻿/**
+ * PromoDesk — Core pages: auth, dashboard, settings
  */
 
-// === Login Page ===
+// === Login ===
 App.prototype.renderLogin = function() {
   document.getElementById('app').innerHTML = `
     <div class="login-page">
       <div class="login-card card">
         <div class="login-header">
-          <div class="login-logo"><i class="ri-rocket-2-fill"></i></div>
-          <h1 class="login-title">Welcome Back</h1>
-          <p class="login-subtitle">Sign in to your Private Dropshipping OS</p>
+          <div class="login-logo"><i class="ri-rocket-line"></i></div>
+          <h1 class="login-title">Welcome back</h1>
+          <p class="login-subtitle">Sign in to continue to PromoDesk</p>
         </div>
-        <form id="login-form">
-          <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input class="form-input" type="email" name="email" required placeholder="you@example.com"></div>
-          <div class="form-group"><label class="form-label">Password <span class="required">*</span></label><input class="form-input" type="password" name="password" required placeholder="••••••••"></div>
-          <button type="submit" class="btn btn-primary btn-block btn-lg">Sign In</button>
+        <form id="login-form" novalidate>
+          <div class="form-group"><label class="form-label" for="login-email">Email</label>
+            <input class="form-input" type="email" id="login-email" name="email" required placeholder="you@example.com" autocomplete="email"></div>
+          <div class="form-group"><label class="form-label" for="login-password">Password</label>
+            <input class="form-input" type="password" id="login-password" name="password" required placeholder="Enter your password" autocomplete="current-password"></div>
+          <div id="login-error"></div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-submit">Sign In</button>
         </form>
-        <p class="text-center text-muted mt-4">Don't have an account? <a href="/register" data-nav>Register</a></p>
+        <p class="text-center text-muted mt-4 text-sm">New to PromoDesk? <a href="/register" data-nav>Create an account</a></p>
       </div>
-    </div>
-  `;
-  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    </div>`;
+  const form = document.getElementById('login-form');
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = e.target.querySelector('button');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Signing in...';
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errBox = document.getElementById('login-error');
+    const btn = document.getElementById('login-submit');
+    errBox.innerHTML = '';
+    if (!email || !password) {
+      errBox.innerHTML = `<div class="form-error"><i class="ri-error-warning-line"></i> Please enter your email and password.</div>`;
+      return;
+    }
+    utils.setBtnLoading(btn, 'Signing you in...');
     try {
-      const data = Object.fromEntries(new FormData(e.target));
-      await window.auth.login(data.email, data.password);
-      utils.toast('success', 'Welcome back!', `Signed in as ${window.auth.user.name}`);
+      await window.auth.login(email, password);
+      utils.toast('success', 'Welcome back!', `You're signed in as ${window.auth.user.name || 'you'}.`);
       window.app.router.navigate('/');
     } catch (err) {
-      utils.toast('error', 'Login failed', err.message);
-      btn.disabled = false; btn.textContent = 'Sign In';
+      errBox.innerHTML = `<div class="alert alert-danger" style="margin-bottom:0.8rem"><i class="ri-error-warning-line"></i> ${utils.escapeHtml(err.message)}</div>`;
+      utils.setBtnIdle(btn);
     }
   });
-  document.querySelector('#app [data-nav]')?.addEventListener('click', (e) => { e.preventDefault(); window.app.router.navigate(e.target.getAttribute('href')); });
+  document.querySelector('#app [data-nav]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (e.target.closest('a')) window.app.router.navigate(e.target.closest('a').getAttribute('href'));
+  });
 };
 
-// === Register Page ===
+// === Register ===
 App.prototype.renderRegister = function() {
   document.getElementById('app').innerHTML = `
     <div class="login-page">
       <div class="login-card card">
         <div class="login-header">
-          <div class="login-logo"><i class="ri-rocket-2-fill"></i></div>
-          <h1 class="login-title">Create Account</h1>
-          <p class="login-subtitle">Start your private dropshipping journey</p>
+          <div class="login-logo"><i class="ri-rocket-line"></i></div>
+          <h1 class="login-title">Create your account</h1>
+          <p class="login-subtitle">Start discovering products and earning commissions today</p>
         </div>
-        <form id="register-form">
-          <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input class="form-input" type="text" name="name" required placeholder="John Doe"></div>
-          <div class="form-group"><label class="form-label">Email <span class="required">*</span></label><input class="form-input" type="email" name="email" required placeholder="you@example.com"></div>
-          <div class="form-group"><label class="form-label">Password <span class="required">*</span></label><input class="form-input" type="password" name="password" required minlength="8" placeholder="Min 8 characters"></div>
-          <button type="submit" class="btn btn-primary btn-block btn-lg">Create Account</button>
+        <form id="register-form" novalidate>
+          <div class="form-group"><label class="form-label" for="reg-name">Full name</label>
+            <input class="form-input" type="text" id="reg-name" name="name" required placeholder="Your name" autocomplete="name"></div>
+          <div class="form-group"><label class="form-label" for="reg-email">Email</label>
+            <input class="form-input" type="email" id="reg-email" name="email" required placeholder="you@example.com" autocomplete="email"></div>
+          <div class="form-group"><label class="form-label" for="reg-password">Password</label>
+            <input class="form-input" type="password" id="reg-password" name="password" required minlength="8" placeholder="At least 8 characters" autocomplete="new-password">
+            <div class="form-hint">Use at least 8 characters.</div></div>
+          <div id="register-error"></div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="register-submit">Create Account</button>
         </form>
-        <p class="text-center text-muted mt-4">Already have an account? <a href="/login" data-nav>Sign in</a></p>
+        <p class="text-center text-muted mt-4 text-sm">Already have an account? <a href="/login" data-nav>Sign in</a></p>
       </div>
-    </div>
-  `;
-  document.getElementById('register-form').addEventListener('submit', async (e) => {
+    </div>`;
+  const form = document.getElementById('register-form');
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = e.target.querySelector('button');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Creating...';
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const errBox = document.getElementById('register-error');
+    const btn = document.getElementById('register-submit');
+    errBox.innerHTML = '';
+    if (password.length < 8) {
+      errBox.innerHTML = `<div class="form-error"><i class="ri-error-warning-line"></i> Your password must be at least 8 characters.</div>`;
+      return;
+    }
+    utils.setBtnLoading(btn, 'Creating your account...');
     try {
-      const data = Object.fromEntries(new FormData(e.target));
-      await window.auth.register(data);
-      utils.toast('success', 'Account created!', 'Welcome to PD OS');
+      await window.auth.register({ name, email, password });
+      utils.toast('success', 'Account created!', 'Welcome to PromoDesk.');
       window.app.router.navigate('/');
     } catch (err) {
-      utils.toast('error', 'Registration failed', err.message);
-      btn.disabled = false; btn.textContent = 'Create Account';
+      errBox.innerHTML = `<div class="alert alert-danger" style="margin-bottom:0.8rem"><i class="ri-error-warning-line"></i> ${utils.escapeHtml(err.message)}</div>`;
+      utils.setBtnIdle(btn);
     }
   });
-  document.querySelector('#app [data-nav]')?.addEventListener('click', (e) => { e.preventDefault(); window.app.router.navigate(e.target.getAttribute('href')); });
+  document.querySelector('#app [data-nav]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (e.target.closest('a')) window.app.router.navigate(e.target.closest('a').getAttribute('href'));
+  });
 };
-
 // === Dashboard ===
 App.prototype.renderDashboard = async function() {
   this.renderLayout(`
     <div class="page-header">
-      <div><h1 class="page-title">Dashboard</h1><p class="page-subtitle">Welcome back, ${utils.escapeHtml(window.auth.user?.name || 'Operator')}</p></div>
+      <div><h1 class="page-title">Welcome back, ${utils.escapeHtml(window.auth.user?.name || 'there')}</h1>
+      <p class="page-subtitle">Here is what is happening with your account today.</p></div>
+      <div class="page-actions">
+        <a class="btn btn-primary" href="/products" data-nav><i class="ri-add-line"></i> Promote a Product</a>
+      </div>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Total Products</div><div class="stat-value" id="stat-products">—</div></div>
-      <div class="stat-card"><div class="stat-label">Active Listings</div><div class="stat-value" id="stat-active">—</div></div>
-      <div class="stat-card"><div class="stat-label">Pending Orders</div><div class="stat-value" id="stat-orders">—</div></div>
-      <div class="stat-card"><div class="stat-label">Revenue (MTD)</div><div class="stat-value" id="stat-revenue">—</div></div>
+    <div id="dash-wallet" class="mb-4"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem">
+      <div id="dash-promos" class="card"></div>
+      <div id="dash-activity" class="card"></div>
     </div>
-    <div class="card"><div class="card-header"><h3 class="card-title">Recent Activity</h3></div><div class="text-muted">Your recent product and order activity will appear here.</div></div>
-  `);
-  try {
-    const products = await window.api.getProducts();
-    document.getElementById('stat-products').textContent = products.data?.length || 0;
-    document.getElementById('stat-active').textContent = products.data?.filter(p => p.status === 'published').length || 0;
-  } catch { /* ignore */ }
-};
+    <div class="card mt-4" id="dash-connect"></div>`);
 
-// === Inventory (internal product catalog — legacy module, preserved) ===
-App.prototype.renderInventory = async function() {
-  this.renderLayout(`
-    <div class="page-header">
-      <div><h1 class="page-title">Inventory</h1><p class="page-subtitle">Internal product catalog and listings</p></div>
-      <div class="page-actions"><button class="btn btn-primary" id="add-product-btn"><i class="ri-add-line"></i> Add Product</button></div>
-    </div>
-    <div class="card"><div id="products-content"><div class="loading-container"><div class="spinner"></div></div></div></div>
-  `);
-  document.getElementById('add-product-btn').onclick = () => this.showProductModal();
-  try {
-    const res = await window.api.getProducts();
-    const products = res.data || [];
-    const content = document.getElementById('products-content');
-    if (products.length === 0) {
-      content.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-shopping-bag-3-line"></i></div><h3 class="empty-state-title">No products yet</h3><p class="empty-state-desc">Add your first product to get started.</p><button class="btn btn-primary" id="empty-add-btn"><i class="ri-add-line"></i> Add Product</button></div>`;
-      document.getElementById('empty-add-btn').onclick = () => this.showProductModal();
-    } else {
-      content.innerHTML = `<div class="table-container"><table class="table"><thead><tr><th>Title</th><th>Category</th><th>Cost</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead><tbody>${products.map(p => `<tr><td><strong>${utils.escapeHtml(p.title)}</strong></td><td>${utils.escapeHtml(p.category || '—')}</td><td>${utils.formatCurrency(p.costPrice)}</td><td>${utils.formatCurrency(p.salePrice)}</td><td>${utils.formatStatus(p.status)}</td><td class="table-actions"><button class="btn btn-sm btn-ghost" onclick="window.app.showProductModal(${p.id})"><i class="ri-edit-line"></i></button><button class="btn btn-sm btn-ghost" onclick="window.app.deleteProduct(${p.id})"><i class="ri-delete-bin-line"></i></button></td></tr>`).join('')}</tbody></table></div>`;
-    }
-  } catch (err) {
-    document.getElementById('products-content').innerHTML = `<div class="empty-state"><p class="text-danger">${err.message}</p></div>`;
-  }
-};
-
-App.prototype.showProductModal = function(id = null) {
-  const isEdit = !!id;
-  utils.showModal(isEdit ? 'Edit Product' : 'Add Product', `
-    <form id="product-form">
-      <div class="form-group"><label class="form-label">Title <span class="required">*</span></label><input class="form-input" name="title" required placeholder="Product name"></div>
-      <div class="form-group"><label class="form-label">Description</label><textarea class="form-textarea" name="description" placeholder="Product description"></textarea></div>
-      <div class="form-row"><div class="form-group"><label class="form-label">Category</label><input class="form-input" name="category" placeholder="e.g. Electronics"></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="discovered">Discovered</option><option value="researching">Researching</option><option value="shortlisted">Shortlisted</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div></div>
-      <div class="form-row"><div class="form-group"><label class="form-label">Cost Price</label><input class="form-input" name="costPrice" type="number" step="0.01" placeholder="0.00"></div><div class="form-group"><label class="form-label">Sale Price</label><input class="form-input" name="salePrice" type="number" step="0.01" placeholder="0.00"></div></div>
-      <div class="form-group"><label class="form-label">Supplier URL</label><input class="form-input" name="supplierUrl" type="url" placeholder="https://..."></div>
-      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" name="notes" placeholder="Internal notes"></textarea></div>
-    </form>
-  `, `<button class="btn btn-secondary" onclick="utils.hideModal()">Cancel</button> <button class="btn btn-primary" id="save-product-btn">${isEdit ? 'Update' : 'Create'}</button>`);
-  document.getElementById('save-product-btn').onclick = async () => {
-    const form = document.getElementById('product-form');
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData);
-    if (data.costPrice) data.costPrice = parseFloat(data.costPrice);
-    if (data.salePrice) data.salePrice = parseFloat(data.salePrice);
+  const load = async () => {
+    const walletEl = document.getElementById('dash-wallet');
+    const promosEl = document.getElementById('dash-promos');
+    const activityEl = document.getElementById('dash-activity');
+    const connectEl = document.getElementById('dash-connect');
+    if (!walletEl) return;
+    walletEl.innerHTML = `
+      <div class="card" style="padding:0">
+        <div class="wallet-hero">
+          <h2>Available balance</h2>
+          <div class="skeleton" style="height:38px;width:200px;margin-top:0.6rem;border-radius:8px"></div>
+          <div class="wallet-note">&nbsp;</div>
+        </div>
+        <div class="wallet-earnings-grid" id="dash-wallet-grid"></div>
+      </div>`;
+    const walletGrid = document.getElementById('dash-wallet-grid');
     try {
-      if (isEdit) await window.api.updateProduct(id, data); else await window.api.createProduct(data);
-      utils.toast('success', 'Success', isEdit ? 'Product updated' : 'Product created');
-      utils.hideModal(); this.renderProducts();
-    } catch (err) { utils.toast('error', 'Error', err.message); }
+      const [walletRes, promoRes, accountsRes, txRes] = await Promise.allSettled([
+        window.api.getWallet(), window.api.getPromotions({ limit: 4 }),
+        window.api.getSocialAccounts(), window.api.getWalletTransactions(),
+      ]);
+      const w = walletRes.status === 'fulfilled' ? walletRes.value.data : null;
+      const promos = promoRes.status === 'fulfilled' ? (promoRes.value.data || []) : [];
+      const accounts = accountsRes.status === 'fulfilled' ? (accountsRes.value.data || []) : [];
+      const txs = txRes.status === 'fulfilled' ? (txRes.value.data || []) : [];
+
+      if (w) {
+        const hero = document.querySelector('.wallet-hero');
+        hero.querySelector('.skeleton')?.remove();
+        const b = document.createElement('div');
+        b.className = 'wallet-balance';
+        b.textContent = utils.formatCurrency(w.available);
+        const n = hero.querySelector('.wallet-note') || document.createElement('div');
+        n.className = 'wallet-note';
+        n.textContent = 'Confirmed earnings that are ready to be withdrawn.';
+        hero.appendChild(b);
+        hero.appendChild(n);
+      }
+      const cards = [
+        ['Estimated earnings', w?.estimated ?? 0, 'ri-lightbulb-flash-line', 'warning'],
+        ['Pending', w?.pending ?? 0, 'ri-time-line', 'info'],
+        ['Confirmed available', w?.available ?? 0, 'ri-wallet-3-line', 'success'],
+        ['Total paid', w?.paid ?? 0, 'ri-bank-line', 'primary'],
+      ];
+      walletGrid.innerHTML = cards.map(([label, val, icon, tone]) => `
+        <div class="card" style="padding:1rem">
+          <div class="stat-label">${label}</div>
+          <div class="flex-between" style="margin-top:0.3rem">
+            <span style="font-size:1.3rem;font-weight:800">${utils.formatCurrency(val)}</span>
+            <i class="${icon}" style="color:var(--${tone});font-size:1.3rem"></i>
+          </div>
+        </div>`).join('');
+
+      promosEl.innerHTML = `
+        <div class="card-header"><h3 class="card-title"><i class="ri-megaphone-line"></i> Recent Activity</h3>
+          <a class="text-sm" href="/promotions" data-nav>View all</a></div>
+        ${promos.length ? promos.slice(0, 4).map(p => {
+          const prod = p.product || {};
+          return `<div class="flex-between" style="padding:0.55rem 0;border-bottom:1px solid var(--border)">
+            <div class="flex" style="gap:0.7rem;align-items:center;min-width:0">
+              ${prod.images?.[0] ? `<img src="${utils.escapeHtml(prod.images[0])}" style="width:42px;height:42px;border-radius:9px;object-fit:cover;background:var(--surface-2)">` : ''}
+              <div style="min-width:0">
+                <div style="font-weight:600;font-size:0.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${utils.escapeHtml(prod.title || 'Product')}</div>
+                <div class="text-muted text-xs">${utils.timeAgo(p.createdAt)} · ${utils.humanStatus(p.socialPlatform) || 'no platform yet'}</div>
+              </div>
+            </div>${utils.statusBadge(p.status)}</div>`;}).join('')
+        : `<div class="empty-state">
+            <div class="empty-state-icon"><i class="ri-megaphone-line"></i></div>
+            <h3>No campaigns yet</h3>
+            <p>Pick a product and start promoting it. Your campaigns will appear here.</p>
+            <a class="btn btn-primary" href="/products" data-nav><i class="ri-shopping-bag-3-line"></i> Browse Products</a>
+          </div>`}`;
+
+      activityEl.innerHTML = `
+        <div class="card-header"><h3 class="card-title"><i class="ri-file-wallet-line"></i> Wallet activity</h3>
+          <a class="text-sm" href="/earnings" data-nav>View wallet</a></div>
+        ${txs.length ? txs.slice(0, 5).map(t => `
+          <div class="flex-between" style="padding:0.55rem 0;border-bottom:1px solid var(--border)">
+            <div style="min-width:0">
+              <div style="font-weight:600;font-size:0.86rem">${utils.escapeHtml(utils.humanStatus(t.type))}</div>
+              <div class="text-muted text-xs" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${utils.escapeHtml(t.description || '')}</div>
+            </div>
+            <div style="font-weight:700;color:${Number(t.amount) >= 0 ? 'var(--success)' : 'var(--text-2)'}">${Number(t.amount) >= 0 ? '+' : ''}${utils.formatCurrency(t.amount)}</div>
+          </div>`).join('')
+        : `<div class="empty-state"><div class="empty-state-icon"><i class="ri-file-wallet-line"></i></div>
+            <h3>No activity yet</h3><p>Your earnings and transactions will show up here.</p></div>`}`;
+
+      connectEl.innerHTML = `
+        <div class="card-header"><h3 class="card-title"><i class="ri-link"></i> Connected accounts</h3>
+          <a class="text-sm" href="/integrations" data-nav>Manage connections</a></div>
+        <div class="flex flex-wrap gap-2">
+          ${['facebook', 'instagram', 'tiktok'].map(pl => {
+            const acc = accounts.find(a => a.provider === pl && a.status === 'connected');
+            const icon = pl === 'facebook' ? 'ri-facebook-fill' : pl === 'instagram' ? 'ri-instagram-fill' : 'ri-music-2-fill';
+            return `<div class="card" style="padding:0.85rem 1rem;display:flex;align-items:center;gap:0.65rem">
+              <i class="${icon}" style="font-size:1.4rem;color:${acc ? 'var(--success)' : 'var(--text-3)'}"></i>
+              <div><div style="font-weight:600;font-size:0.85rem">${pl.charAt(0).toUpperCase() + pl.slice(1)}</div>
+              <div class="text-xs" style="color:${acc ? 'var(--success)' : 'var(--text-3)'}">${acc ? 'Connected' : 'Not connected'}</div></div>
+            </div>`;}).join('')}
+        </div>`;
+    } catch (err) {
+      if (walletGrid) walletGrid.innerHTML = `<div class="alert alert-danger">${utils.escapeHtml(err.message)}</div>`;
+    }
   };
+  await load();
 };
-
-App.prototype.deleteProduct = function(id) {
-  utils.confirm('Are you sure you want to delete this product?', async () => {
-    try { await window.api.deleteProduct(id); utils.toast('success', 'Deleted', 'Product removed'); this.renderProducts(); }
-    catch (err) { utils.toast('error', 'Error', err.message); }
-  });
-};
-
-// === Research ===
-App.prototype.renderResearch = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Product Research</h1><p class="page-subtitle">Discover and analyze trending products</p></div></div><div class="card"><div id="research-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getResearch(); document.getElementById('research-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-search-eye-line"></i></div><h3 class="empty-state-title">Research Module</h3><p class="empty-state-desc">Product research tools will appear here.</p></div>`; }
-  catch (err) { document.getElementById('research-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
-};
-
-// === Suppliers ===
-App.prototype.renderSuppliers = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Suppliers</h1><p class="page-subtitle">Manage your supplier network</p></div></div><div class="card"><div id="suppliers-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getSuppliers(); document.getElementById('suppliers-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-truck-line"></i></div><h3 class="empty-state-title">Supplier Management</h3><p class="empty-state-desc">Your supplier directory will appear here.</p></div>`; }
-  catch (err) { document.getElementById('suppliers-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
-};
-
-// === Stores ===
-App.prototype.renderStores = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Stores</h1><p class="page-subtitle">Manage your storefront integrations</p></div></div><div class="card"><div id="stores-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getStores(); document.getElementById('stores-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-store-2-line"></i></div><h3 class="empty-state-title">Store Management</h3><p class="empty-state-desc">Connect and manage your storefronts.</p></div>`; }
-  catch (err) { document.getElementById('stores-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
-};
-
-// === Orders ===
-App.prototype.renderOrders = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Orders</h1><p class="page-subtitle">Track and fulfill customer orders</p></div></div><div class="card"><div id="orders-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getOrders(); document.getElementById('orders-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-file-list-3-line"></i></div><h3 class="empty-state-title">Order Management</h3><p class="empty-state-desc">Your orders and fulfillment tracking will appear here.</p></div>`; }
-  catch (err) { document.getElementById('orders-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
-};
-
-// === AI Studio ===
-App.prototype.renderAiStudio = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">AI Studio</h1><p class="page-subtitle">Generate product content with AI</p></div></div><div class="card"><div id="ai-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getAiJobs(); document.getElementById('ai-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-magic-line"></i></div><h3 class="empty-state-title">AI Studio</h3><p class="empty-state-desc">Generate product descriptions, marketing copy, and more with AI.</p></div>`; }
-  catch (err) { document.getElementById('ai-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
-};
-
-// === Marketing ===
-App.prototype.renderMarketing = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Marketing</h1><p class="page-subtitle">Manage campaigns and social publishing</p></div></div><div class="card"><div id="marketing-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getMarketing(); document.getElementById('marketing-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-megaphone-line"></i></div><h3 class="empty-state-title">Marketing Hub</h3><p class="empty-state-desc">Plan and publish your marketing campaigns.</p></div>`; }
-  catch (err) { document.getElementById('marketing-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
-};
-
-// === Analytics ===
-App.prototype.renderAnalytics = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Analytics</h1><p class="page-subtitle">Track performance and revenue</p></div></div><div class="card"><div id="analytics-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getAnalytics(); document.getElementById('analytics-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-bar-chart-grouped-line"></i></div><h3 class="empty-state-title">Analytics Dashboard</h3><p class="empty-state-desc">Your sales and performance metrics will appear here.</p></div>`; }
-  catch (err) { document.getElementById('analytics-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
-};
-
-// === Integrations ===
-App.prototype.renderIntegrations = async function() {
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Integrations</h1><p class="page-subtitle">Connect third-party services</p></div></div><div class="card"><div id="integrations-content"><div class="loading-container"><div class="spinner"></div></div></div></div>`);
-  try { await window.api.getIntegrations(); document.getElementById('integrations-content').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-plug-2-line"></i></div><h3 class="empty-state-title">Integrations</h3><p class="empty-state-desc">Connect your stores, suppliers, and marketing platforms.</p></div>`; }
-  catch (err) { document.getElementById('integrations-content').innerHTML = `<p class="text-danger">${err.message}</p>`; }
+// === AI Studio landing (no product selected yet) ===
+App.prototype.renderAiStudioHome = async function(promotionId) {
+  if (promotionId) {
+    await this.renderAiStudio(promotionId);
+    return;
+  }
+  this.renderLayout(`
+    <div class="page-header"><div><h1 class="page-title">AI Studio</h1>
+    <p class="page-subtitle">Turn any product into ready-to-post content in seconds</p></div></div>
+    <div class="card" style="max-width:640px;margin:0 auto">
+      <div class="empty-state">
+        <div class="empty-state-icon"><i class="ri-magic-line"></i></div>
+        <h3>Choose a product to get started</h3>
+        <p>Select a product from the marketplace and we will build the marketing content for it — posts, captions, scripts and more.</p>
+        <div class="flex flex-wrap gap-2" style="justify-content:center">
+          <a class="btn btn-primary" href="/products" data-nav><i class="ri-shopping-bag-3-line"></i> Browse Products</a>
+          <a class="btn btn-secondary" href="/promotions" data-nav><i class="ri-megaphone-line"></i> My Promotions</a>
+        </div>
+      </div>
+    </div>`);
 };
 
 // === Settings ===
 App.prototype.renderSettings = function() {
   const user = window.auth.user;
-  this.renderLayout(`<div class="page-header"><div><h1 class="page-title">Settings</h1><p class="page-subtitle">Manage your account and preferences</p></div></div>
-  <div class="card" style="max-width:600px"><div class="card-header"><h3 class="card-title">Account Settings</h3></div>
-  <form id="settings-form"><div class="form-group"><label class="form-label">Full Name</label><input class="form-input" name="name" value="${utils.escapeHtml(user?.name || '')}"></div><div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" value="${utils.escapeHtml(user?.email || '')}" disabled></div><div class="form-group"><label class="form-label">Role</label><input class="form-input" value="${utils.escapeHtml(user?.role || 'Operator')}" disabled></div><button type="submit" class="btn btn-primary">Save Changes</button></form>
-  <hr style="border-color: var(--border-primary); margin: 1.5rem 0"><h4 class="font-semibold mb-4">Danger Zone</h4><button class="btn btn-danger" id="logout-btn"><i class="ri-logout-box-r-line"></i> Sign Out</button></div>`);
-  document.getElementById('settings-form').addEventListener('submit', (e) => { e.preventDefault(); utils.toast('info', 'Info', 'Profile update not yet implemented'); });
-  document.getElementById('logout-btn').onclick = () => window.auth.logout();
+  this.renderLayout(`
+    <div class="page-header"><div><h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Manage your account and security</p></div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title"><i class="ri-user-line"></i> Profile</h3></div>
+        <div id="profile-result"></div>
+        <form id="profile-form" novalidate>
+          <div class="form-group"><label class="form-label">Full name</label>
+            <input class="form-input" name="name" value="${utils.escapeHtml(user?.name || '')}"></div>
+          <div class="form-group"><label class="form-label">Email</label>
+            <input class="form-input" type="email" value="${utils.escapeHtml(user?.email || '')}" disabled>
+            <div class="form-hint">Your email cannot be changed.</div></div>
+          <button type="submit" class="btn btn-primary" id="profile-submit"><i class="ri-save-line"></i> Save Changes</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3 class="card-title"><i class="ri-lock-line"></i> Password</h3></div>
+        <div id="password-result"></div>
+        <form id="password-form" novalidate>
+          <div class="form-group"><label class="form-label">Current password</label>
+            <input class="form-input" type="password" name="currentPassword" autocomplete="current-password" required></div>
+          <div class="form-group"><label class="form-label">New password</label>
+            <input class="form-input" type="password" name="newPassword" minlength="8" autocomplete="new-password" required>
+            <div class="form-hint">Use at least 8 characters.</div></div>
+          <button type="submit" class="btn btn-primary" id="password-submit"><i class="ri-lock-password-line"></i> Update Password</button>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3 class="card-title"><i class="ri-shield-check-line"></i> Session</h3></div>
+        <p class="text-sm text-muted" style="margin-bottom:1rem">Signing out ends this session on this device. You can sign back in at any time.</p>
+        <p class="text-xs text-muted" style="margin-bottom:1rem">Signed in as <strong>${utils.escapeHtml(user?.email || '')}</strong></p>
+        <button class="btn btn-danger btn-block" id="settings-logout"><i class="ri-logout-box-r-line"></i> Sign Out</button>
+      </div>
+    </div>`);
+
+  // Profile save
+  const pForm = document.getElementById('profile-form');
+  pForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('profile-submit');
+    const box = document.getElementById('profile-result');
+    utils.setBtnLoading(btn, 'Saving...');
+    box.innerHTML = '';
+    try {
+      const res = await window.api.updateProfile({ name: pForm.name.value.trim() });
+      if (res.user) { window.auth.setUser(res.user, res.token || window.auth.token); }
+      box.innerHTML = `<div class="alert alert-success"><i class="ri-check-circle-line"></i> Your profile has been updated.</div>`;
+      utils.toast('success', 'Saved', 'Your profile has been updated.');
+    } catch (err) {
+      box.innerHTML = `<div class="alert alert-danger"><i class="ri-error-warning-line"></i> ${utils.escapeHtml(err.message)}</div>`;
+    }
+    utils.setBtnIdle(btn);
+    setTimeout(() => { box.innerHTML = ''; }, 3500);
+  });
+
+  // Password change
+  const pwForm = document.getElementById('password-form');
+  pwForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('password-submit');
+    const box = document.getElementById('password-result');
+    if (pwForm.newPassword.value.length < 8) {
+      box.innerHTML = `<div class="alert alert-danger"><i class="ri-error-warning-line"></i> Your new password must be at least 8 characters.</div>`;
+      return;
+    }
+    utils.setBtnLoading(btn, 'Updating...');
+    box.innerHTML = '';
+    try {
+      const res = await window.api.updateProfile({ currentPassword: pwForm.currentPassword.value, password: pwForm.newPassword.value });
+      if (res.token) window.auth.setUser(res.user || window.auth.user, res.token);
+      pwForm.reset();
+      box.innerHTML = `<div class="alert alert-success"><i class="ri-check-circle-line"></i> Your password has been updated.</div>`;
+      utils.toast('success', 'Password updated', 'Your new password is active.');
+    } catch (err) {
+      box.innerHTML = `<div class="alert alert-danger"><i class="ri-error-warning-line"></i> ${utils.escapeHtml(err.message)}</div>`;
+    }
+    utils.setBtnIdle(btn);
+    setTimeout(() => { box.innerHTML = ''; }, 3500);
+  });
+
+  document.getElementById('settings-logout').onclick = () => {
+    utils.confirm('Are you sure you want to sign out of PromoDesk?', () => window.auth.logout(), { title: 'Sign out', confirmText: 'Sign Out' });
+  };
 };
 
 // === 404 ===
 App.prototype.render404 = function() {
-  this.renderLayout(`<div class="empty-state"><div class="empty-state-icon"><i class="ri-error-warning-line"></i></div><h3 class="empty-state-title">Page Not Found</h3><p class="empty-state-desc">The page you're looking for doesn't exist.</p><a href="/" class="btn btn-primary" data-nav>Go to Dashboard</a></div>`);
+  this.renderLayout(`
+    <div class="empty-state" style="min-height:60vh;justify-content:center">
+      <div class="empty-state-icon"><i class="ri-compass-3-line"></i></div>
+      <h3>Page not found</h3>
+      <p>The page you are looking for does not exist or has moved.</p>
+      <a href="/" class="btn btn-primary" data-nav><i class="ri-home-5-line"></i> Go to Dashboard</a>
+    </div>`);
 };

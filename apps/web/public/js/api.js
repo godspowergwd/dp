@@ -1,9 +1,30 @@
 /**
- * API Client for Private Dropshipping OS
- * Connects directly to the Fastify backend at /api/v1
+ * PromoDesk — API client (server-side integrations stay on the backend)
  */
 
-const API_BASE = 'http://localhost:4000/api/v1';
+// Same-origin by default; override via window config or query-free deployment
+const API_BASE = (window.PROMODESK_CONFIG && window.PROMODESK_CONFIG.apiBase) || '/api/v1';
+
+/** Map internal responses to friendly, product-appropriate messages. */
+function friendlyError(status, payload) {
+  const raw = (payload && (payload.message || payload.error)) || '';
+  const isTechnical = /prisma|constraint|invalid input|column|table|undefined|null|\[object|object html|stack trace| at |error: |sql/i.test(raw);
+  if (raw && !isTechnical && raw.length < 160) return raw;
+
+  const fallback = {
+    400: 'Please review the information you entered and try again.',
+    401: 'Your session has expired. Please sign in again.',
+    403: 'You don\'t have permission to perform this action.',
+    404: 'We couldn\'t find what you were looking for.',
+    409: 'This has already been saved. Refresh the page to see the latest changes.',
+    415: 'We couldn\'t process your request. Please try again.',
+    422: 'Please review the information you entered and try again.',
+    429: 'You\'ve made too many requests. Please wait a moment and try again.',
+  };
+  if (fallback[status]) return fallback[status];
+  if (status >= 500) return 'We\'re experiencing a temporary issue. Please try again in a moment.';
+  return 'Something went wrong. Please try again.';
+}
 
 class ApiClient {
   constructor() {
@@ -23,11 +44,18 @@ class ApiClient {
     const options = { method, headers };
     if (body && method !== 'GET') options.body = JSON.stringify(body);
 
-    const response = await fetch(`${API_BASE}${path}`, options);
-    const data = await response.json();
+    let response;
+    try {
+      response = await fetch(`${API_BASE}${path}`, options);
+    } catch {
+      throw new Error('We couldn\'t reach PromoDesk. Please check your connection and try again.');
+    }
+
+    let data = null;
+    try { data = await response.json(); } catch { /* no body */ }
 
     if (!response.ok) {
-      throw new Error(data.message || data.error || `Request failed: ${response.status}`);
+      throw new Error(friendlyError(response.status, data));
     }
     return data;
   }
@@ -36,6 +64,7 @@ class ApiClient {
   login(email, password) { return this.request('POST', '/auth/login', { email, password }); }
   register(data) { return this.request('POST', '/auth/register', data); }
   getMe() { return this.request('GET', '/auth/me'); }
+  updateProfile(data) { return this.request('PATCH', '/auth/me', data); }
 
   // Products
   getProducts(params = {}) {

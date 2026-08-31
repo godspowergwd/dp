@@ -1,12 +1,13 @@
 import type { FastifyInstance } from 'fastify';
-import { loginSchema, registerSchema } from './auth.schema.js';
-import { login, register } from './auth.service.js';
+import { loginSchema, registerSchema, updateProfileSchema } from './auth.schema.js';
+import { login, register, updateProfile, getCurrentUser } from './auth.service.js';
 
 /**
  * Auth routes — /api/v1/auth
- * POST /register   bootstrap the owner (only when no account exists)
- * POST /login      obtain a JWT
- * GET  /me         return the current operator (protected)
+ * POST /register   create an account
+ * POST /login      obtain a session token
+ * GET  /me         return the current user (protected)
+ * PATCH /me        update profile (name, password)
  */
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   const sign = (payload: object) => app.jwt.sign(payload);
@@ -23,8 +24,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/me',
     { preHandler: [app.authenticate] },
-    async (request) => {
-      return { user: request.authUser };
+    async (request, reply) => {
+      const user = await getCurrentUser(request.authUser!.id);
+      if (!user) return reply.code(401).send({ error: 'Unauthorized' });
+      return { user };
+    },
+  );
+
+  app.patch(
+    '/me',
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const result = await updateProfile(request.authUser!.id, updateProfileSchema.parse(request.body), sign);
+      return reply.code(200).send(result);
     },
   );
 }

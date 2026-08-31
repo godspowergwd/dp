@@ -29,8 +29,9 @@ class Router {
       try {
         await handler();
       } catch (err) {
-        console.error('Route error:', err);
-        utils.toast('error', 'Navigation Error', err.message);
+        if (window.location.pathname === path) {
+          this.routes['/404']();
+        }
       }
     }
   }

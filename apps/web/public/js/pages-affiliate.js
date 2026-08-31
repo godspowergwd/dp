@@ -5,19 +5,21 @@
 
 // ==================== PRODUCTS (Affiliate Marketplace) ====================
 App.prototype.renderProducts = async function() {
+  const isAdmin = ['admin', 'owner'].includes(window.auth.user?.role);
   this.renderLayout(`
     <div class="page-header">
-      <div><h1 class="page-title">Affiliate Products</h1>
-      <p class="page-subtitle">Browse products from the platform's affiliate networks</p></div>
-      <button class="btn btn-secondary" id="sync-btn"><i class="ri-refresh-line"></i> Sync Products</button>
+      <div><h1 class="page-title">Products</h1>
+      <p class="page-subtitle">Curated products you can promote and earn from</p></div>
+      <div class="page-actions">
+        ${isAdmin ? `<button class="btn btn-secondary" id="sync-btn"><i class="ri-refresh-line"></i> Refresh Catalogue</button>` : ''}
+      </div>
     </div>
-    <div class="alert alert-info" style="font-size:0.85rem">
-      <i class="ri-information-line"></i> Commission values are <strong>estimates</strong> until confirmed by the affiliate network.
-      <span class="badge" style="background:#fff3cd;color:#856404;margin-left:0.5rem">DEMO DATA</span>
+    <div class="alert alert-info" style="font-size:0.85rem;margin-bottom:1rem">
+      <i class="ri-information-line"></i> Commissions are <strong>estimates</strong> until confirmed by the network after a sale.
     </div>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem">
       <input class="form-input" id="product-search" placeholder="Search products..." style="flex:1;min-width:160px">
-      <select class="form-select" id="filter-provider" style="width:auto"><option value="">All Providers</option></select>
+      <select class="form-select" id="filter-provider" style="width:auto"><option value="">All Stores</option></select>
       <select class="form-select" id="filter-category" style="width:auto"><option value="">All Categories</option></select>
       <select class="form-select" id="filter-sort" style="width:auto">
         <option value="popularity">Most Popular</option>
@@ -25,7 +27,7 @@ App.prototype.renderProducts = async function() {
         <option value="commission">Commission</option>
       </select>
     </div>
-    <div id="products-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem">
+    <div id="products-grid" class="prod-grid">
       <div style="grid-column:1/-1;text-align:center;padding:2rem"><div class="spinner"></div></div>
     </div>
     <div id="products-more" class="text-center" style="margin-top:1.5rem"></div>
@@ -35,7 +37,7 @@ App.prototype.renderProducts = async function() {
     const provSel = document.getElementById('filter-provider');
     (provRes.data || []).forEach(p => {
       const o = document.createElement('option'); o.value = p.name;
-      o.textContent = p.name.toUpperCase() + (p.mode === 'demo' ? ' (demo)' : ''); provSel.appendChild(o);
+      o.textContent = p.name.charAt(0).toUpperCase() + p.name.slice(1); provSel.appendChild(o);
     });
     const catSel = document.getElementById('filter-category');
     (catRes.data || []).forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o); });
@@ -57,7 +59,7 @@ App.prototype.renderProducts = async function() {
       const products = res.data || [];
       if (!append) grid.innerHTML = '';
       if (!products.length && !append) {
-        grid.innerHTML = '<div style="grid-column:1/-1" class="empty-state"><i class="ri-archive-line"></i><p>No products found. Click <strong>Sync Products</strong> to fetch the catalogue.</p></div>';
+        grid.innerHTML = '<div style="grid-column:1/-1" class="empty-state"><div class="empty-state-icon"><i class="ri-shopping-bag-3-line"></i></div><h3>No products available</h3><p>Products from our partner stores will appear here as soon as they are available.</p></div>';
       }
       products.forEach(p => this.appendProductCard(grid, p));
       offset += products.length;
@@ -71,15 +73,17 @@ App.prototype.renderProducts = async function() {
       grid.innerHTML = `<div style="grid-column:1/-1" class="empty-state"><p class="text-danger">${err.message}</p></div>`;
     }
   };
-  document.getElementById('sync-btn').onclick = async () => {
-    const btn = document.getElementById('sync-btn'); btn.disabled = true;
-    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block"></span> Syncing...';
-    try {
-      await window.api.syncAffiliate(); utils.toast('success', 'Sync complete', 'Product catalogue updated');
-      offset = 0; await load();
-    } catch (err) { utils.toast('error', 'Sync failed', err.message); }
-    btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Sync Products';
-  };
+  if (document.getElementById('sync-btn')) {
+    document.getElementById('sync-btn').onclick = async () => {
+      const btn = document.getElementById('sync-btn'); btn.disabled = true;
+      btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block"></span> Updating...';
+      try {
+        await window.api.syncAffiliate(); utils.toast('success', 'Catalogue updated', 'The latest products are now available.');
+        offset = 0; await load();
+      } catch (err) { utils.toast('error', 'Unable to update', err.message); }
+      btn.disabled = false; btn.innerHTML = '<i class="ri-refresh-line"></i> Refresh Catalogue';
+    };
+  }
   ['filter-provider', 'filter-category', 'filter-sort'].forEach(id =>
     document.getElementById(id).addEventListener('change', () => { offset = 0; load(); }));
   let searchTimer;
@@ -245,9 +249,9 @@ App.prototype.aiStudioInit = async function(promotionId, promotion) {
     accountsBox.querySelectorAll('[data-connect]').forEach(b => b.onclick = async () => {
       try {
         await window.api.connectSocial(b.dataset.connect);
-        utils.toast('success', 'Account connected', `${b.dataset.connect} connected (demo mode)`);
+        utils.toast('success', 'Account connected', 'Your account is ready to use.');
         this.renderAiStudio(promotionId);
-      } catch (err) { utils.toast('error', 'Connect failed', err.message); }
+      } catch (err) { utils.toast('error', 'Unable to connect', err.message); }
     });
     accountsBox.querySelectorAll('input[name=social-account]').forEach(r => r.onchange = () => {
       selectedAccount = r.value || null;
@@ -268,7 +272,7 @@ App.prototype.aiStudioInit = async function(promotionId, promotion) {
       });
       generated = res.data.generatedContent;
       out.innerHTML = `
-        <div class="alert alert-success" style="font-size:0.8rem"><i class="ri-checkbox-circle-line"></i> Content generated <span class="badge" style="background:#fff3cd;color:#856404">DEMO AI</span></div>
+        <div class="alert alert-success" style="font-size:0.8rem"><i class="ri-checkbox-circle-line"></i> Your content is ready — review it below before publishing.</div>
         <textarea class="form-input" id="ai-edit-text" rows="7" style="width:100%">${utils.escapeHtml(generated.text)}</textarea>
         ${generated.hashtags && generated.hashtags.length ? `<p style="color:var(--primary);font-size:0.85rem">${generated.hashtags.map(h => '#' + utils.escapeHtml(h)).join(' ')}</p>` : ''}
         <div style="display:flex;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap">
@@ -294,7 +298,7 @@ App.prototype.aiStudioInit = async function(promotionId, promotion) {
       await window.api.publishPromotion(promotionId, selectedAccount);
       box.innerHTML = `<div class="alert alert-success"><i class="ri-check-circle-line"></i> Published! Promotion is now live and tracked.</div>
         <button class="btn btn-secondary btn-sm btn-block" onclick="app.router.navigate('/promotions');app.renderPromotions()">View My Promotions</button>`;
-      utils.toast('success', 'Published', 'Your content is live (demo publisher)');
+      utils.toast('success', 'Published', 'Your content is now live and being tracked.');
     } catch (err) {
       box.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
       btn.disabled = false; btn.innerHTML = '<i class="ri-send-plane-line"></i> Publish Now';
@@ -314,51 +318,42 @@ App.prototype.renderPromotions = async function() {
     const promos = res.data || [];
     const box = document.getElementById('promotions-list');
     if (!promos.length) {
-      box.innerHTML = `<div class="empty-state"><i class="ri-megaphone-line" style="font-size:3rem;opacity:0.3"></i>
-        <h3>No promotions yet</h3><p>Browse products and click Promote to get started.</p>
-        <button class="btn btn-primary" onclick="app.router.navigate('/products');app.renderProducts()">Browse Products</button></div>`;
+      box.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-megaphone-line"></i></div>
+        <h3>No campaigns yet</h3><p>Browse products and click Promote to create your first campaign.</p>
+        <a class="btn btn-primary" href="/products" data-nav><i class="ri-shopping-bag-3-line"></i> Browse Products</a></div>`;
       return;
     }
-    const statusColors = { draft: '#6c757d', generating: '#fd7e14', ready: '#0d6efd', scheduled: '#6f42c1', published: '#1a7f4b', failed: '#dc3545', archived: '#6c757d' };
     box.innerHTML = `<div style="display:grid;gap:0.75rem">` + promos.map(pr => {
       const prod = pr.product || {};
       const gc = pr.generatedContent || {};
       return `<div class="card" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
-        <img src="${utils.escapeHtml((prod.images && prod.images[0]) || '')}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;background:#eef0f3">
+        <img src="${utils.escapeHtml((prod.images && prod.images[0]) || '')}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;background:var(--surface-2)">
         <div style="flex:1;min-width:200px">
-          <strong>${utils.escapeHtml(prod.title || 'Product')}</strong>
-          <div class="text-muted" style="font-size:0.8rem">
-            <span class="badge" style="background:${statusColors[pr.status] || '#6c757d'};color:#fff">${(pr.status || '').toUpperCase()}</span>
-            ${pr.socialPlatform ? `<i class="ri-share-line"></i> ${utils.escapeHtml(pr.socialPlatform)} Â· ` : ''}
-            ${pr.clicks || 0} clicks Â· ${pr.conversions || 0} conversions
+          <strong style="font-size:0.92rem">${utils.escapeHtml(prod.title || 'Product')}</strong>
+          <div class="text-muted" style="font-size:0.82rem;margin-top:0.2rem">
+            ${utils.statusBadge(pr.status)}
+            ${pr.socialPlatform ? `<span class="text-sm">· <i class="ri-share-line"></i> ${utils.escapeHtml(pr.socialPlatform)}</span>` : ''}
+            <span class="text-sm">· ${pr.clicks || 0} clicks · ${pr.conversions || 0} sales</span>
           </div>
         </div>
         <div style="text-align:right">
-          <div style="font-weight:700;color:#1a7f4b">${utils.formatCurrency(pr.estimatedEarnings)}</div>
-          <div class="text-muted" style="font-size:0.78rem">est. Â· confirmed ${utils.formatCurrency(pr.confirmedEarnings)}</div>
+          <div style="font-weight:800;color:var(--success);font-size:0.95rem">${utils.formatCurrency(pr.estimatedEarnings)}</div>
+          <div class="text-muted" style="font-size:0.75rem">estimated · ${utils.formatCurrency(pr.confirmedEarnings)} confirmed</div>
         </div>
         <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
           ${pr.status !== 'published' && gc.text ? `<button class="btn btn-secondary btn-sm" data-pub="${pr.id}"><i class="ri-send-plane-line"></i> Publish</button>` : ''}
-          <button class="btn btn-secondary btn-sm" data-sim="${pr.id}" title="Simulate a sale (demo)"><i class="ri-flask-line"></i> Demo Sale</button>
         </div>
       </div>`;
     }).join('') + `</div>`;
     box.querySelectorAll('[data-pub]').forEach(b => b.onclick = async () => {
       try {
         await window.api.publishPromotion(b.dataset.pub);
-        utils.toast('success', 'Published', 'Promotion published (demo publisher)');
+        utils.toast('success', 'Published', 'Your content is now live and being tracked.');
         this.renderPromotions();
       } catch (err) { utils.toast('error', 'Publish failed', err.message); }
     });
-    box.querySelectorAll('[data-sim]').forEach(b => b.onclick = async () => {
-      try {
-        const r = await window.api.simulatePromotionSale(b.dataset.sim);
-        utils.toast('info', 'Demo sale recorded', r.notice || 'Commission recorded as PENDING');
-        this.renderPromotions();
-      } catch (err) { utils.toast('error', 'Error', err.message); }
-    });
   } catch (err) {
-    document.getElementById('promotions-list').innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    document.getElementById('promotions-list').innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i class="ri-megaphone-line"></i></div><h3>We couldn't load your campaigns</h3><p>${utils.escapeHtml(err.message)}</p></div>`;
   }
 };
 
@@ -378,17 +373,17 @@ App.prototype.renderEarnings = async function() {
   const w = wallet.data;
   const fmt = utils.formatCurrency;
   this.renderLayout(`
-    <div class="page-header"><div><h1 class="page-title">Earnings</h1>
-    <p class="page-subtitle">Your virtual earnings wallet</p></div></div>
+    <div class="page-header"><div><h1 class="page-title">Wallet</h1>
+    <p class="page-subtitle">Your commissions, payouts and withdrawal requests</p></div></div>
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Estimated</div><div class="stat-value">${fmt(w.estimated)}</div>
-        <div class="stat-change" style="font-size:0.72rem">Potential from product data</div></div>
-      <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:#b8860b">${fmt(w.pending)}</div>
-        <div class="stat-change" style="font-size:0.72rem">Detected, not yet confirmed</div></div>
-      <div class="stat-card"><div class="stat-label">Available</div><div class="stat-value" style="color:#1a7f4b">${fmt(w.available)}</div>
-        <div class="stat-change" style="font-size:0.72rem">Confirmed, ready for payout</div></div>
-      <div class="stat-card"><div class="stat-label">Total Paid</div><div class="stat-value">${fmt(w.paid)}</div>
-        <div class="stat-change" style="font-size:0.72rem">Withdrawals completed</div></div>
+      <div class="stat-card"><div class="stat-label">Estimated earnings</div><div class="stat-value">${fmt(w.estimated)}</div>
+        <div class="stat-change" style="font-size:0.72rem;color:var(--text-3)">Expected from current activity</div></div>
+      <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" style="color:var(--warning)">${fmt(w.pending)}</div>
+        <div class="stat-change" style="font-size:0.72rem;color:var(--text-3)">Detected, awaiting confirmation</div></div>
+      <div class="stat-card"><div class="stat-label">Available</div><div class="stat-value" style="color:var(--success)">${fmt(w.available)}</div>
+        <div class="stat-change" style="font-size:0.72rem;color:var(--text-3)">Confirmed and ready to withdraw</div></div>
+      <div class="stat-card"><div class="stat-label">Total paid</div><div class="stat-value">${fmt(w.paid)}</div>
+        <div class="stat-change" style="font-size:0.72rem;color:var(--text-3)">Everything paid out to you</div></div>
     </div>
     <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:1.5rem;margin-top:1.5rem" class="earnings-grid">
       <div id="earnings-main"></div>
@@ -411,7 +406,7 @@ App.prototype.earningsInit = function(wallet, commissions, withdrawals, transact
         ${commissions.data.map(c => `<tr style="border-bottom:1px solid var(--border-color,#eee)">
           <td style="padding:6px">${new Date(c.detectedAt || c.createdAt).toLocaleDateString()}</td>
           <td>${fmt(c.saleAmount)}</td><td><strong>${fmt(c.userShare)}</strong></td>
-          <td><span class="badge" style="background:var(--bg-tertiary,#eef0f3)">${c.status.toUpperCase()}</span></td></tr>`).join('')}
+          <td>${utils.statusBadge(c.status)}</td></tr>`).join('')}
       </tbody></table></div>` : '<p class="text-muted">No commissions yet. Promote products to earn.</p>'}
     </div>
     <div class="card" style="margin-top:1rem">

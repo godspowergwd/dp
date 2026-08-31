@@ -1,6 +1,45 @@
 /**
- * App Initialization & Layout
+ * PromoDesk — App shell, navigation & routing
  */
+
+const NAV_SECTIONS = [
+  { label: 'Overview', items: [{ path: '/', label: 'Dashboard', icon: 'ri-dashboard-3-line' }] },
+  {
+    label: 'Marketplace',
+    items: [
+      { path: '/products', label: 'Products', icon: 'ri-shopping-bag-3-line' },
+      { path: '/ai-studio', label: 'AI Studio', icon: 'ri-magic-line' },
+      { path: '/promotions', label: 'My Promotions', icon: 'ri-megaphone-line' },
+    ],
+  },
+  { label: 'Earnings', items: [{ path: '/earnings', label: 'Wallet', icon: 'ri-wallet-3-line' }] },
+  {
+    label: 'Account',
+    items: [
+      { path: '/integrations', label: 'Connections', icon: 'ri-link' },
+      { path: '/settings', label: 'Settings', icon: 'ri-settings-3-line' },
+    ],
+  },
+];
+
+const BOTTOM_NAV = [
+  { path: '/', label: 'Home', icon: 'ri-home-5-line' },
+  { path: '/products', label: 'Products', icon: 'ri-shopping-bag-3-line' },
+  { path: '/ai-studio', label: 'Studio', icon: 'ri-magic-line' },
+  { path: '/earnings', label: 'Wallet', icon: 'ri-wallet-3-line' },
+  { path: '/promotions', label: 'Promos', icon: 'ri-megaphone-line' },
+];
+
+const PAGE_TITLES = {
+  '/': ['Dashboard', 'Your business at a glance'],
+  '/products': ['Products', 'Browse the affiliate marketplace'],
+  '/ai-studio': ['AI Studio', 'Create marketing content in seconds'],
+  '/promotions': ['My Promotions', 'Track everything you publish'],
+  '/earnings': ['Wallet', 'Commissions, withdrawals & payouts'],
+  '/integrations': ['Connections', 'Link your social media accounts'],
+  '/settings': ['Settings', 'Manage your account'],
+  '/admin': ['Admin', 'Platform management'],
+};
 
 class App {
   constructor() {
@@ -14,89 +53,106 @@ class App {
       this.router.navigate('/login');
       return;
     }
+    if (isAuth && (window.location.pathname === '/login' || window.location.pathname === '/register')) {
+      this.router.navigate('/');
+      return;
+    }
     this.router.resolve();
   }
 
   registerRoutes() {
+    const legacy = ['/inventory', '/research', '/suppliers', '/stores', '/orders', '/marketing', '/analytics'];
     this.router
       .add('/login', () => this.renderLogin())
       .add('/register', () => this.renderRegister())
       .add('/', () => this.renderDashboard())
       .add('/products', () => this.renderProducts())
-      .add('/inventory', () => this.renderInventory())
+      .add('/ai-studio', () => this.renderAiStudioHome(App.pageParams().promotion || null))
       .add('/promotions', () => this.renderPromotions())
       .add('/earnings', () => this.renderEarnings())
-      .add('/admin', () => this.renderAdmin())
-      .add('/research', () => this.renderResearch())
-      .add('/suppliers', () => this.renderSuppliers())
-      .add('/stores', () => this.renderStores())
-      .add('/orders', () => this.renderOrders())
-      .add('/ai-studio', () => this.renderAiStudio())
-      .add('/marketing', () => this.renderMarketing())
-      .add('/analytics', () => this.renderAnalytics())
       .add('/integrations', () => this.renderIntegrations())
       .add('/settings', () => this.renderSettings())
+      .add('/admin', () => this.renderAdmin())
       .add('/404', () => this.render404());
+    legacy.forEach(p => this.router.add(p, () => this.router.navigate('/')));
   }
 
-  renderLayout(content) {
+  static pageParams() {
+    const params = {};
+    new URLSearchParams(window.location.search).forEach((v, k) => { params[k] = v; });
+    return params;
+  }
+
+  /** Route guard: only admins/owners may access /admin */
+  guardRoute(path) {
+    const user = window.auth.user;
+    if (path === '/admin' && !['admin', 'owner'].includes(user?.role)) {
+      utils.toast('warning', 'Access restricted', 'This area is only available to administrators.');
+      this.router.navigate('/');
+      return false;
+    }
+    return true;
+  }
+renderLayout(content, { pageTitle, crumb } = {}) {
     const app = document.getElementById('app');
     const user = window.auth.user;
+    const path = window.location.pathname;
+    const t = PAGE_TITLES[path] || [pageTitle || 'PromoDesk', crumb || ''];
+    const sections = NAV_SECTIONS.map(sec => {
+      const links = sec.items
+        .map(it => `<a class="sidebar-link ${this.isActive(it.path)}" href="${it.path}" data-nav>
+          <i class="${it.icon}"></i><span>${it.label}</span></a>`)
+        .join('');
+      return links ? `<div class="sidebar-section">
+        <div class="sidebar-section-title">${sec.label}</div>${links}</div>` : '';
+    }).join('');
+    const adminLink = ['admin', 'owner'].includes(user?.role)
+      ? `<div class="sidebar-section"><div class="sidebar-section-title">Management</div>
+          <a class="sidebar-link ${this.isActive('/admin')}" href="/admin" data-nav>
+            <i class="ri-shield-user-line"></i><span>Admin</span></a></div>`
+      : '';
+    const bottomNav = BOTTOM_NAV.map(it =>
+      `<a class="bottom-nav-item ${path === it.path ? 'active' : ''}" href="${it.path}" data-nav>
+        <i class="${it.icon}"></i><span>${it.label}</span></a>`).join('');
+
     app.innerHTML = `
       <div class="app-layout">
         <aside class="sidebar" id="sidebar">
           <div class="sidebar-header">
-            <div class="sidebar-logo"><i class="ri-rocket-2-fill"></i></div>
-            <span class="sidebar-brand">PD OS</span>
+            <div class="brand-logo"><i class="ri-rocket-line"></i></div>
+            <div><div class="brand-name">PromoDesk</div><div class="brand-tag">Affiliate Commerce</div></div>
           </div>
-          <nav class="sidebar-nav">
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Overview</div>
-              <a class="sidebar-link ${this.isActive('/')}" href="/" data-nav><i class="ri-dashboard-3-line"></i><span>Dashboard</span></a>
-            </div>
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Affiliate Commerce</div>
-              <a class="sidebar-link ${this.isActive('/products')}" href="/products" data-nav><i class="ri-shopping-bag-3-line"></i><span>Products</span></a>
-              <a class="sidebar-link ${this.isActive('/ai-studio')}" href="/ai-studio" data-nav><i class="ri-magic-line"></i><span>AI Studio</span></a>
-              <a class="sidebar-link ${this.isActive('/promotions')}" href="/promotions" data-nav><i class="ri-megaphone-line"></i><span>Promotions</span></a>
-              <a class="sidebar-link ${this.isActive('/earnings')}" href="/earnings" data-nav><i class="ri-wallet-3-line"></i><span>Earnings</span></a>
-            </div>
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Operations</div>
-              <a class="sidebar-link ${this.isActive('/inventory')}" href="/inventory" data-nav><i class="ri-archive-line"></i><span>Inventory</span></a>
-              <a class="sidebar-link ${this.isActive('/research')}" href="/research" data-nav><i class="ri-search-eye-line"></i><span>Research</span></a>
-              <a class="sidebar-link ${this.isActive('/suppliers')}" href="/suppliers" data-nav><i class="ri-truck-line"></i><span>Suppliers</span></a>
-              <a class="sidebar-link ${this.isActive('/stores')}" href="/stores" data-nav><i class="ri-store-2-line"></i><span>Stores</span></a>
-              <a class="sidebar-link ${this.isActive('/orders')}" href="/orders" data-nav><i class="ri-file-list-3-line"></i><span>Orders</span></a>
-            </div>
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Growth</div>
-              <a class="sidebar-link ${this.isActive('/marketing')}" href="/marketing" data-nav><i class="ri-megaphone-line"></i><span>Marketing</span></a>
-              <a class="sidebar-link ${this.isActive('/analytics')}" href="/analytics" data-nav><i class="ri-bar-chart-grouped-line"></i><span>Analytics</span></a>
-            </div>
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">System</div>
-              ${['admin', 'owner'].includes(user?.role) ? `<a class="sidebar-link ${this.isActive('/admin')}" href="/admin" data-nav><i class="ri-shield-user-line"></i><span>Admin</span></a>` : ''}
-              <a class="sidebar-link ${this.isActive('/integrations')}" href="/integrations" data-nav><i class="ri-plug-2-line"></i><span>Integrations</span></a>
-              <a class="sidebar-link ${this.isActive('/settings')}" href="/settings" data-nav><i class="ri-settings-3-line"></i><span>Settings</span></a>
-            </div>
-          </nav>
+          <nav class="sidebar-nav">${sections}${adminLink}</nav>
           <div class="sidebar-footer">
             <div class="sidebar-user">
-              <div class="sidebar-avatar">${user?.name?.charAt(0)?.toUpperCase() || 'U'}</div>
+              <div class="avatar">${user?.name?.charAt(0)?.toUpperCase() || 'U'}</div>
               <div class="sidebar-user-info">
-                <div class="sidebar-user-name">${utils.escapeHtml(user?.name || 'User')}</div>
-                <div class="sidebar-user-role">${user?.role || 'Operator'}</div>
+                <div class="sidebar-user-name">${utils.escapeHtml(user?.name || 'Member')}</div>
+                <div class="sidebar-user-role">${user?.role === 'owner' ? 'Administrator' : 'Creator'}</div>
               </div>
             </div>
           </div>
         </aside>
-        <main class="main-content" id="main-content">${content}</main>
+
+        <header class="topbar">
+          <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu"><i class="ri-menu-line"></i></button>
+          <div>
+            <div class="topbar-crumb">${t[1] || 'PromoDesk'}</div>
+            <div class="topbar-page">${t[0]}</div>
+          </div>
+        </header>
+
+        <main class="main-content" id="main-content"><div class="page">${content}</div></main>
+
+        <nav class="bottom-nav" id="bottom-nav">${bottomNav}</nav>
       </div>
     `;
+    const btn = document.getElementById('mobile-menu-btn');
+    if (btn) btn.onclick = () => document.getElementById('sidebar')?.classList.toggle('open');
     app.querySelectorAll('[data-nav]').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
+        document.getElementById('sidebar')?.classList.remove('open');
         this.router.navigate(link.getAttribute('href'));
       });
     });

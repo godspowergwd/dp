@@ -48,9 +48,9 @@ class Auth {
   async checkAuth() {
     if (!this.isAuthenticated()) return false;
     try {
-      const user = await window.api.getMe();
-      this.user = user;
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      const res = await window.api.getMe();
+      this.user = res.user || res;
+      localStorage.setItem('auth_user', JSON.stringify(this.user));
       return true;
     } catch {
       this.clear();
