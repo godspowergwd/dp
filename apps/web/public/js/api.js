@@ -74,6 +74,64 @@ class ApiClient {
 
   // Audit
   getAuditLogs() { return this.request('GET', '/audit'); }
+
+  // ==================== Affiliate Marketplace ====================
+  getAffiliateProducts(params = {}) {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v != null)).toString();
+    return this.request('GET', `/affiliate/products${qs ? '?' + qs : ''}`);
+  }
+  getAffiliateProduct(id) { return this.request('GET', `/affiliate/products/${id}`); }
+  getAffiliateProviders() { return this.request('GET', '/affiliate/providers'); }
+  getAffiliateCategories() { return this.request('GET', '/affiliate/products/categories'); }
+  syncAffiliate(provider = '') { return this.request('POST', '/affiliate/sync', provider ? { provider } : {}); }
+
+  // ==================== Promotions ====================
+  createPromotion(productId) { return this.request('POST', '/promotions', { productId }); }
+  getPromotions(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request('GET', `/promotions${qs ? '?' + qs : ''}`);
+  }
+  getPromotion(id) { return this.request('GET', `/promotions/${id}`); }
+  generatePromotionContent(id, options = {}) { return this.request('POST', `/promotions/${id}/content`, options); }
+  publishPromotion(id, socialAccountId) { return this.request('POST', `/promotions/${id}/publish`, { socialAccountId }); }
+  simulatePromotionSale(id) { return this.request('POST', `/promotions/${id}/simulate-sale`); }
+
+  // ==================== AI Studio ====================
+  getAiContentTypes() { return this.request('GET', '/ai/content-types'); }
+  generateAiContent(data) { return this.request('POST', '/ai/generate', data); }
+
+  // ==================== Social Accounts ====================
+  getSocialAccounts() { return this.request('GET', '/social/accounts'); }
+  getSocialPlatforms() { return this.request('GET', '/social/platforms'); }
+  connectSocial(platform) { return this.request('POST', '/social/connect', { platform }); }
+  disconnectSocial(id) { return this.request('POST', `/social/accounts/${id}/disconnect`); }
+  reconnectSocial(id) { return this.request('POST', `/social/accounts/${id}/reconnect`); }
+  getAdvertisingAccounts() { return this.request('GET', '/social/advertising/accounts'); }
+
+  // ==================== Earnings / Wallet ====================
+  getWallet() { return this.request('GET', '/earnings/wallet'); }
+  getCommissions(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.request('GET', `/earnings/commissions${qs ? '?' + qs : ''}`);
+  }
+  getWalletTransactions() { return this.request('GET', '/earnings/transactions'); }
+  getWithdrawals() { return this.request('GET', '/earnings/withdrawals'); }
+  requestWithdrawal(data) { return this.request('POST', '/earnings/withdrawals', data); }
+
+  // ==================== Admin ====================
+  getAdminDashboard() { return this.request('GET', '/admin/dashboard'); }
+  getAdminUsers() { return this.request('GET', '/admin/users'); }
+  getAdminCommissions(status = '') {
+    return this.request('GET', `/admin/commissions${status ? '?status=' + status : ''}`);
+  }
+  confirmCommission(id) { return this.request('POST', `/admin/commissions/${id}/confirm`); }
+  rejectCommission(id, reason = '') { return this.request('POST', `/admin/commissions/${id}/reject`, { reason }); }
+  getAdminWithdrawals(status = '') {
+    return this.request('GET', `/admin/withdrawals${status ? '?status=' + status : ''}`);
+  }
+  reviewWithdrawal(id, action, extra = {}) { return this.request('POST', `/admin/withdrawals/${id}/review`, { action, ...extra }); }
+  updateUserStatus(id, isActive) { return this.request('PATCH', `/admin/users/${id}/status`, { isActive }); }
+  getAuditLogFeed() { return this.request('GET', '/admin/audit-logs?limit=20'); }
 }
 
 window.api = new ApiClient();

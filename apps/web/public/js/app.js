@@ -23,6 +23,10 @@ class App {
       .add('/register', () => this.renderRegister())
       .add('/', () => this.renderDashboard())
       .add('/products', () => this.renderProducts())
+      .add('/inventory', () => this.renderInventory())
+      .add('/promotions', () => this.renderPromotions())
+      .add('/earnings', () => this.renderEarnings())
+      .add('/admin', () => this.renderAdmin())
       .add('/research', () => this.renderResearch())
       .add('/suppliers', () => this.renderSuppliers())
       .add('/stores', () => this.renderStores())
@@ -51,8 +55,15 @@ class App {
               <a class="sidebar-link ${this.isActive('/')}" href="/" data-nav><i class="ri-dashboard-3-line"></i><span>Dashboard</span></a>
             </div>
             <div class="sidebar-section">
-              <div class="sidebar-section-title">Operations</div>
+              <div class="sidebar-section-title">Affiliate Commerce</div>
               <a class="sidebar-link ${this.isActive('/products')}" href="/products" data-nav><i class="ri-shopping-bag-3-line"></i><span>Products</span></a>
+              <a class="sidebar-link ${this.isActive('/ai-studio')}" href="/ai-studio" data-nav><i class="ri-magic-line"></i><span>AI Studio</span></a>
+              <a class="sidebar-link ${this.isActive('/promotions')}" href="/promotions" data-nav><i class="ri-megaphone-line"></i><span>Promotions</span></a>
+              <a class="sidebar-link ${this.isActive('/earnings')}" href="/earnings" data-nav><i class="ri-wallet-3-line"></i><span>Earnings</span></a>
+            </div>
+            <div class="sidebar-section">
+              <div class="sidebar-section-title">Operations</div>
+              <a class="sidebar-link ${this.isActive('/inventory')}" href="/inventory" data-nav><i class="ri-archive-line"></i><span>Inventory</span></a>
               <a class="sidebar-link ${this.isActive('/research')}" href="/research" data-nav><i class="ri-search-eye-line"></i><span>Research</span></a>
               <a class="sidebar-link ${this.isActive('/suppliers')}" href="/suppliers" data-nav><i class="ri-truck-line"></i><span>Suppliers</span></a>
               <a class="sidebar-link ${this.isActive('/stores')}" href="/stores" data-nav><i class="ri-store-2-line"></i><span>Stores</span></a>
@@ -60,12 +71,12 @@ class App {
             </div>
             <div class="sidebar-section">
               <div class="sidebar-section-title">Growth</div>
-              <a class="sidebar-link ${this.isActive('/ai-studio')}" href="/ai-studio" data-nav><i class="ri-magic-line"></i><span>AI Studio</span></a>
               <a class="sidebar-link ${this.isActive('/marketing')}" href="/marketing" data-nav><i class="ri-megaphone-line"></i><span>Marketing</span></a>
               <a class="sidebar-link ${this.isActive('/analytics')}" href="/analytics" data-nav><i class="ri-bar-chart-grouped-line"></i><span>Analytics</span></a>
             </div>
             <div class="sidebar-section">
               <div class="sidebar-section-title">System</div>
+              ${['admin', 'owner'].includes(user?.role) ? `<a class="sidebar-link ${this.isActive('/admin')}" href="/admin" data-nav><i class="ri-shield-user-line"></i><span>Admin</span></a>` : ''}
               <a class="sidebar-link ${this.isActive('/integrations')}" href="/integrations" data-nav><i class="ri-plug-2-line"></i><span>Integrations</span></a>
               <a class="sidebar-link ${this.isActive('/settings')}" href="/settings" data-nav><i class="ri-settings-3-line"></i><span>Settings</span></a>
             </div>

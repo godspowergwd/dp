@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); const p = await prisma.affiliateProvider.findMany({select:{name:true,id:true,status:true}}); console.log('PROVIDERS:', JSON.stringify(p)); const c = await prisma.affiliateProduct.count(); console.log('PRODUCT COUNT:', c); await prisma.$disconnect;

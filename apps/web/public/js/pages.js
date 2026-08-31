@@ -96,11 +96,11 @@ App.prototype.renderDashboard = async function() {
   } catch { /* ignore */ }
 };
 
-// === Products ===
-App.prototype.renderProducts = async function() {
+// === Inventory (internal product catalog — legacy module, preserved) ===
+App.prototype.renderInventory = async function() {
   this.renderLayout(`
     <div class="page-header">
-      <div><h1 class="page-title">Products</h1><p class="page-subtitle">Manage your product catalog and listings</p></div>
+      <div><h1 class="page-title">Inventory</h1><p class="page-subtitle">Internal product catalog and listings</p></div>
       <div class="page-actions"><button class="btn btn-primary" id="add-product-btn"><i class="ri-add-line"></i> Add Product</button></div>
     </div>
     <div class="card"><div id="products-content"><div class="loading-container"><div class="spinner"></div></div></div></div>
