@@ -55,6 +55,18 @@ class ApiClient {
     try { data = await response.json(); } catch { /* no body */ }
 
     if (!response.ok) {
+      // Session expired mid-use: sign the user out gracefully and return to sign-in.
+      // Skip for auth endpoints themselves (login/register failures are handled in-form).
+      if (response.status === 401 && this.token && !path.startsWith('/auth/login') && !path.startsWith('/auth/register')) {
+        this.setToken(null);
+        localStorage.removeItem('auth_user');
+        if (window.auth) window.auth.user = null;
+        const route = window.app && window.app.router ? window.app.router : null;
+        if (route && route.currentPage !== '/login') {
+          utils.toast('info', 'Session ended', 'For your security, please sign in again to continue.');
+          route.navigate('/login');
+        }
+      }
       throw new Error(friendlyError(response.status, data));
     }
     return data;
